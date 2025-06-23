@@ -5,8 +5,10 @@ import pandas as pd
 import logging
 
 # --- CONFIGURATION ---
-api_key = 'ZFi287lvQscv7wLNwegYI9GMncdzDLGsykuhWajRHFZmu9NTJ4gLCxfPJqvHUjvt'
-api_secret = 'M7RX62VQGmqiAETGXWfQLqLKbPXFv9ZE1BZnhFdFHBrj0T4phlz03R4Vlwkhajmn'
+import os
+
+api_key = os.getenv('api_key')
+api_secret = os.getenv('api_secret')
 max_drawdown_pct = 2  # % of balance per trade
 timeframe = '1h'
 sl_pct = 3  # Stop-loss %
