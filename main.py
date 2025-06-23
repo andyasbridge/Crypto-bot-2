@@ -21,6 +21,7 @@ exchange = ccxt.binance({
     'secret': api_secret,
     'enableRateLimit': True,
     'options': {'defaultType': 'future'}
+'adjustForTimeDifference': True
 })
 
 # Load markets
@@ -60,23 +61,45 @@ def execute_trade(symbol, side):
         balance = exchange.fetch_balance({'type': 'future'})
         usdt_balance = balance['total']['USDT']
         risk_amount = usdt_balance * (max_drawdown_pct / 100)
+
         ticker = exchange.fetch_ticker(symbol)
         price = ticker['last']
         quantity = round(risk_amount / price, 3)
+
+        # Set SL/TP levels (adjust as needed)
+        sl_pct = 0.02  # 2% stop-loss
+        tp_pct = 0.05  # 5% take-profit
+
         if side == 'LONG':
+            print(f"[LONG] {symbol}: Entry @ {price}, SL @ {price * (1 - sl_pct)}, TP @ {price * (1 + tp_pct)}")
             exchange.create_market_buy_order(symbol, quantity)
-            sl = round(price * (1 - sl_pct / 100), 2)
-            tp = round(price * (1 + tp_pct / 100), 2)
+
+            # Place Take Profit
+            exchange.create_order(symbol, 'take_profit_market', 'sell', quantity, None, {
+                'stopPrice': price * (1 + tp_pct),
+            })
+
+            # Place Stop Loss
+            exchange.create_order(symbol, 'stop_market', 'sell', quantity, None, {
+                'stopPrice': price * (1 - sl_pct),
+            })
+
         elif side == 'SHORT':
+            print(f"[SHORT] {symbol}: Entry @ {price}, SL @ {price * (1 + sl_pct)}, TP @ {price * (1 - tp_pct)}")
             exchange.create_market_sell_order(symbol, quantity)
-            sl = round(price * (1 + sl_pct / 100), 2)
-            tp = round(price * (1 - tp_pct / 100), 2)
-        msg = f"{side} {symbol} at {price:.2f}, SL: {sl}, TP: {tp}"
-        print(msg)
-        logging.info(msg)
+
+            # Take Profit
+            exchange.create_order(symbol, 'take_profit_market', 'buy', quantity, None, {
+                'stopPrice': price * (1 - tp_pct),
+            })
+
+            # Stop Loss
+            exchange.create_order(symbol, 'stop_market', 'buy', quantity, None, {
+                'stopPrice': price * (1 + sl_pct),
+            })
+
     except Exception as e:
         print(f"Trade error on {symbol}: {e}")
-        logging.error(f"Trade error on {symbol}: {e}")
 
 # --- MAIN LOOP ---
 if __name__ == '__main__':
